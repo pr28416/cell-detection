@@ -322,18 +322,21 @@ if uploaded is not None:
         with left:
             st.subheader("Slice preview")
             st.caption(
-                "Drag to select a slice (100–1024 px) of the current channel to preview with your settings."
+                "Drag to select a slice of the current channel to preview with your settings."
             )
             current_path = paths.get(sel or "", None)
             if current_path:
                 # Load the same downsampled image that's shown in the viewer
                 img_array = load_preview(current_path)
                 pil_img = Image.fromarray(img_array.astype(np.uint8)).convert("L")
-                
+
                 # Get original image dimensions for physical scaling calculation
                 orig_img = Image.open(current_path).convert("L")
-                orig_h, orig_w = orig_img.size[1], orig_img.size[0]  # PIL uses (W, H) format
-                
+                orig_h, orig_w = (
+                    orig_img.size[1],
+                    orig_img.size[0],
+                )  # PIL uses (W, H) format
+
                 # Get the downsampling scale factor
                 preview_h, preview_w = pil_img.size[1], pil_img.size[0]
                 scale_factor = orig_w / preview_w  # How much the preview is downsampled
@@ -341,11 +344,8 @@ if uploaded is not None:
                 slice_img = st_cropper(pil_img, aspect_ratio=None, box_color="#00FF00")
                 snp = np.array(slice_img)
                 h, w = snp.shape[:2]
-                if h < 100 or w < 100:
-                    st.warning(
-                        "Selected slice is too small. Increase selection to at least 100×100."
-                    )
-                else:
+                
+                if h > 0 and w > 0:
                     # Get original physical dimensions to maintain pixel-to-micron ratio
                     s = st.session_state.get("_settings", {})
                     orig_width_um = s.get("width_um", 1705.6)
@@ -354,23 +354,18 @@ if uploaded is not None:
                     # Calculate pixel size from ORIGINAL image (this is the true pixel size)
                     true_px_size_x_um = orig_width_um / orig_w
                     true_px_size_y_um = orig_height_um / orig_h
-                    
+
                     # Crop dimensions are from the downsampled preview, so scale them up to original resolution
                     orig_crop_w = w * scale_factor
                     orig_crop_h = h * scale_factor
 
-                    # Handle downscaling if slice is too large
+                    # Save the slice image (keep it at preview resolution for fast processing)
                     actual_h, actual_w = h, w
-                    if max(h, w) > 1024:
-                        scale = max(h, w) / 1024.0
-                        actual_h, actual_w = int(h / scale), int(w / scale)
-                        snp = resize(
-                            snp, (actual_h, actual_w), preserve_range=True
-                        ).astype(np.uint8)
-
-                    # Calculate effective physical dimensions using the TRUE pixel size from original image
-                    slice_width_um = actual_w * true_px_size_x_um
-                    slice_height_um = actual_h * true_px_size_y_um
+                    # Note: We keep the slice at preview resolution but calculate correct physical dimensions
+                    
+                    # Calculate physical dimensions based on ORIGINAL scale crop dimensions
+                    slice_width_um = orig_crop_w * true_px_size_x_um
+                    slice_height_um = orig_crop_h * true_px_size_y_um
 
                     roi_path = os.path.join(prev_dir, "slice.png")
                     iio.imwrite(roi_path, snp)
@@ -421,7 +416,10 @@ if uploaded is not None:
                                 f"🔧 Debug: Passing width_um={slice_width_um:.2f}, height_um={slice_height_um:.2f}"
                             )
                             st.write(
-                                f"🔧 Debug: Slice is {actual_w}×{actual_h} px, downsample={downsample}"
+                                f"🔧 Debug: Slice image is {actual_w}×{actual_h} px (preview scale)"
+                            )
+                            st.write(
+                                f"🔧 Debug: Represents {orig_crop_w:.0f}×{orig_crop_h:.0f} px in original, downsample={downsample}"
                             )
                             calc_px_size_x = slice_width_um / actual_w
                             calc_px_size_y = slice_height_um / actual_h
