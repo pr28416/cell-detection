@@ -54,19 +54,46 @@ except:
     st.caption("🔧 Upload limit: Using default configuration")
 
 # Upload first with better error handling
+st.markdown("### 📁 File Upload")
 uploaded = st.file_uploader(
-    "Upload .tif/.tiff image", 
+    "Upload .tif/.tiff image",
     type=["tif", "tiff"],
-    help="Large files (>500MB) may take several minutes to upload. Please be patient."
+    help="Large files (>500MB) may take several minutes to upload. Please be patient.",
 )
+
+# Show alternative for very large files
+col1, col2 = st.columns([3, 1])
+with col2:
+    with st.expander("💻 Large files?"):
+        st.markdown("""
+        **Having upload issues?**
+        
+        For files >500MB, consider:
+        1. [Run locally](https://github.com/pr28416/cell-detection) 
+        2. Try a smaller test file first
+        3. Use stable internet connection
+        """)
+with col1:
+    pass  # File uploader is above
 
 # Show upload progress for large files
 if uploaded is not None:
-    file_size_mb = len(uploaded.getvalue()) / (1024 * 1024)
-    if file_size_mb > 200:
-        st.info(f"📁 Large file detected ({file_size_mb:.1f}MB). Processing may take a few minutes...")
-    elif file_size_mb > 500:
-        st.warning(f"⚠️ Very large file ({file_size_mb:.1f}MB). Upload and processing will take time. Please keep the browser tab open.")
+    try:
+        file_size_mb = len(uploaded.getvalue()) / (1024 * 1024)
+        st.success(f"✅ Upload successful! File size: {file_size_mb:.1f}MB")
+        
+        if file_size_mb > 200:
+            st.info(
+                f"📁 Large file detected ({file_size_mb:.1f}MB). Processing may take a few minutes..."
+            )
+        elif file_size_mb > 500:
+            st.warning(
+                f"⚠️ Very large file ({file_size_mb:.1f}MB). Upload and processing will take time. Please keep the browser tab open."
+            )
+    except Exception as e:
+        st.error(f"❌ Upload error: {str(e)}")
+        st.error("Please try a smaller file or refresh the page and try again.")
+        uploaded = None
 
 
 # Helper to render settings panel next to slice preview
