@@ -326,12 +326,17 @@ if uploaded is not None:
             )
             current_path = paths.get(sel or "", None)
             if current_path:
-                pil_img = Image.open(current_path).convert("L")
+                # Load the same downsampled image that's shown in the viewer
+                img_array = load_preview(current_path)
+                pil_img = Image.fromarray(img_array.astype(np.uint8)).convert("L")
+                
                 # Get original image dimensions for physical scaling calculation
-                orig_h, orig_w = (
-                    pil_img.size[1],
-                    pil_img.size[0],
-                )  # PIL uses (W, H) format
+                orig_img = Image.open(current_path).convert("L")
+                orig_h, orig_w = orig_img.size[1], orig_img.size[0]  # PIL uses (W, H) format
+                
+                # Get the downsampling scale factor
+                preview_h, preview_w = pil_img.size[1], pil_img.size[0]
+                scale_factor = orig_w / preview_w  # How much the preview is downsampled
 
                 slice_img = st_cropper(pil_img, aspect_ratio=None, box_color="#00FF00")
                 snp = np.array(slice_img)
@@ -346,9 +351,13 @@ if uploaded is not None:
                     orig_width_um = s.get("width_um", 1705.6)
                     orig_height_um = s.get("height_um", 1706.81)
 
-                    # Calculate pixel size from ORIGINAL image
-                    px_size_x_um = orig_width_um / orig_w
-                    px_size_y_um = orig_height_um / orig_h
+                    # Calculate pixel size from ORIGINAL image (this is the true pixel size)
+                    true_px_size_x_um = orig_width_um / orig_w
+                    true_px_size_y_um = orig_height_um / orig_h
+                    
+                    # Crop dimensions are from the downsampled preview, so scale them up to original resolution
+                    orig_crop_w = w * scale_factor
+                    orig_crop_h = h * scale_factor
 
                     # Handle downscaling if slice is too large
                     actual_h, actual_w = h, w
@@ -359,22 +368,27 @@ if uploaded is not None:
                             snp, (actual_h, actual_w), preserve_range=True
                         ).astype(np.uint8)
 
-                    # Calculate effective physical dimensions that maintain original pixel size
-                    # This tricks the function into using the correct pixel-to-micron ratio
-                    slice_width_um = actual_w * px_size_x_um
-                    slice_height_um = actual_h * px_size_y_um
+                    # Calculate effective physical dimensions using the TRUE pixel size from original image
+                    slice_width_um = actual_w * true_px_size_x_um
+                    slice_height_um = actual_h * true_px_size_y_um
 
                     roi_path = os.path.join(prev_dir, "slice.png")
                     iio.imwrite(roi_path, snp)
 
-                    # Calculate what the minimum radius should be in pixels for debugging  
+                    # Calculate what the minimum radius should be in pixels for debugging
                     min_diam_um = s.get("min_diam_um", 10.0)
-                    avg_px_size_um = np.sqrt(px_size_x_um * px_size_y_um)
+                    avg_px_size_um = np.sqrt(true_px_size_x_um * true_px_size_y_um)
                     expected_min_radius_px = (min_diam_um / avg_px_size_um) / 2.0
-                    
-                    # Show slice info
+
+                    # Show slice info with proper debugging
                     st.caption(
-                        f"📏 Slice: {actual_w}×{actual_h} px | Pixel size: {px_size_x_um:.3f}×{px_size_y_um:.3f} µm/px"
+                        f"📏 Original: {orig_w}×{orig_h} px → Preview: {preview_w}×{preview_h} px (scale: {scale_factor:.1f}x)"
+                    )
+                    st.caption(
+                        f"📏 Slice: {actual_w}×{actual_h} px → {orig_crop_w:.0f}×{orig_crop_h:.0f} px in original"
+                    )
+                    st.caption(
+                        f"📏 True pixel size: {true_px_size_x_um:.4f}×{true_px_size_y_um:.4f} µm/px"
                     )
                     st.caption(
                         f"🔍 Debug: {min_diam_um}µm min diameter → expected ~{expected_min_radius_px:.1f}px min radius"
@@ -401,14 +415,20 @@ if uploaded is not None:
 
                         with st.spinner("Detecting on slice..."):
                             t0 = time.time()
-                            
+
                             # Debug: show what we're passing to the function
-                            st.write(f"🔧 Debug: Passing width_um={slice_width_um:.2f}, height_um={slice_height_um:.2f}")
-                            st.write(f"🔧 Debug: Slice is {actual_w}×{actual_h} px, downsample={downsample}")
+                            st.write(
+                                f"🔧 Debug: Passing width_um={slice_width_um:.2f}, height_um={slice_height_um:.2f}"
+                            )
+                            st.write(
+                                f"🔧 Debug: Slice is {actual_w}×{actual_h} px, downsample={downsample}"
+                            )
                             calc_px_size_x = slice_width_um / actual_w
                             calc_px_size_y = slice_height_um / actual_h
-                            st.write(f"🔧 Debug: Function will calculate px_size: {calc_px_size_x:.4f}×{calc_px_size_y:.4f} µm/px")
-                            
+                            st.write(
+                                f"🔧 Debug: Function will calculate px_size: {calc_px_size_x:.4f}×{calc_px_size_y:.4f} µm/px"
+                            )
+
                             slice_count, _ = _count_dots_on_preview(
                                 preview_png_path=roi_path,
                                 min_sigma=1.5,
@@ -630,4 +650,3 @@ if uploaded is not None:
 
 else:
     st.info("Upload a .tif to begin.")
-
