@@ -5,6 +5,9 @@ import tempfile
 # Set environment variables for large uploads before importing streamlit
 os.environ["STREAMLIT_SERVER_MAX_UPLOAD_SIZE"] = "1024"
 os.environ["STREAMLIT_SERVER_MAX_MESSAGE_SIZE"] = "1024"
+os.environ["STREAMLIT_SERVER_ENABLE_CORS"] = "false"
+os.environ["STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION"] = "false"
+os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 os.environ["maxUploadSize"] = "1024"
 
 # typing imports removed
@@ -50,8 +53,20 @@ try:
 except:
     st.caption("🔧 Upload limit: Using default configuration")
 
-# Upload first
-uploaded = st.file_uploader("Upload .tif/.tiff image", type=["tif", "tiff"])
+# Upload first with better error handling
+uploaded = st.file_uploader(
+    "Upload .tif/.tiff image", 
+    type=["tif", "tiff"],
+    help="Large files (>500MB) may take several minutes to upload. Please be patient."
+)
+
+# Show upload progress for large files
+if uploaded is not None:
+    file_size_mb = len(uploaded.getvalue()) / (1024 * 1024)
+    if file_size_mb > 200:
+        st.info(f"📁 Large file detected ({file_size_mb:.1f}MB). Processing may take a few minutes...")
+    elif file_size_mb > 500:
+        st.warning(f"⚠️ Very large file ({file_size_mb:.1f}MB). Upload and processing will take time. Please keep the browser tab open.")
 
 
 # Helper to render settings panel next to slice preview
