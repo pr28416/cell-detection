@@ -21,15 +21,17 @@ from main import inspect_and_preview, _count_dots_on_preview
 
 # Force configure upload limits using Streamlit's internal config
 try:
-    from streamlit import config
+    from streamlit import config  # type: ignore
+
     config._set_option("server.maxUploadSize", 1024, "command_line")
-    config._set_option("server.maxMessageSize", 1024, "command_line") 
+    config._set_option("server.maxMessageSize", 1024, "command_line")
 except:
     pass
 
 # Also try setting via runtime config
 try:
-    import streamlit.runtime.config as runtime_config
+    import streamlit.runtime.config as runtime_config  # type: ignore
+
     runtime_config.get_config_options()["server.maxUploadSize"] = 1024
     runtime_config.get_config_options()["server.maxMessageSize"] = 1024
 except:
@@ -41,7 +43,8 @@ st.title("Cell Detection")
 
 # Display current upload limit for debugging
 try:
-    from streamlit import config
+    from streamlit import config  # type: ignore
+
     current_limit = config.get_option("server.maxUploadSize")
     st.caption(f"🔧 Current upload limit: {current_limit}MB")
 except:
