@@ -1,10 +1,22 @@
-# Cell Detection Tool
+---
+title: Cell Detection Tool
+emoji: 🔬
+colorFrom: blue
+colorTo: purple
+sdk: streamlit
+sdk_version: 1.28.0
+app_file: streamlit_app.py
+pinned: false
+license: mit
+---
+
+# Visual Cortex - Cell Detection Tool
 
 A Streamlit web application for automated detection and counting of circular cells in microscopy images.
 
 ## Features
 
-- **Multi-channel TIFF support**: Load and preview 4-channel microscopy images
+- **Multi-channel TIFF support**: Load and preview 4-channel microscopy images (up to 1GB)
 - **Interactive parameter tuning**: Real-time adjustment of detection parameters
 - **Slice preview**: Test settings on small image regions for fast iteration
 - **Advanced detection pipeline**: Uses thresholding, morphological operations, and watershed segmentation
@@ -30,9 +42,5 @@ A Streamlit web application for automated detection and counting of circular cel
 
 ```bash
 pip install -r requirements.txt
-streamlit run app.py
+streamlit run streamlit_app.py
 ```
-
-## Deployment
-
-This app is designed to run on Streamlit Community Cloud with up to 1GB file uploads supported.
