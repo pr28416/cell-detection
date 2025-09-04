@@ -1,6 +1,11 @@
 import os
 import time
 import tempfile
+import zipfile
+import io
+import gzip
+import lz4.frame
+import zstandard as zstd
 
 # Set environment variables for large uploads before importing streamlit
 os.environ["STREAMLIT_SERVER_MAX_UPLOAD_SIZE"] = "1024"
@@ -21,6 +26,69 @@ from streamlit_cropper import st_cropper  # type: ignore
 from PIL import Image  # type: ignore
 
 from main import inspect_and_preview, _count_dots_on_preview
+
+# Compression utilities
+def decompress_file(compressed_data, compression_type):
+    """Decompress uploaded file data"""
+    try:
+        if compression_type == "zip":
+            with zipfile.ZipFile(io.BytesIO(compressed_data), 'r') as zip_ref:
+                # Get the first .tif/.tiff file in the archive
+                for filename in zip_ref.namelist():
+                    if filename.lower().endswith(('.tif', '.tiff')):
+                        return zip_ref.read(filename), filename
+                raise ValueError("No TIFF files found in ZIP archive")
+        
+        elif compression_type == "gzip":
+            return gzip.decompress(compressed_data), "decompressed.tif"
+        
+        elif compression_type == "lz4":
+            return lz4.frame.decompress(compressed_data), "decompressed.tif"
+        
+        elif compression_type == "zstd":
+            dctx = zstd.ZstdDecompressor()
+            return dctx.decompress(compressed_data), "decompressed.tif"
+        
+        else:
+            return compressed_data, "uploaded.tif"
+            
+    except Exception as e:
+        st.error(f"Failed to decompress file: {str(e)}")
+        return None, None
+
+def detect_compression_type(filename):
+    """Detect compression type from file extension"""
+    filename_lower = filename.lower()
+    if filename_lower.endswith('.zip'):
+        return "zip"
+    elif filename_lower.endswith('.gz'):
+        return "gzip"
+    elif filename_lower.endswith('.lz4'):
+        return "lz4"
+    elif filename_lower.endswith('.zst'):
+        return "zstd"
+    else:
+        return None
+
+def show_compression_guide():
+    """Display compression guidance for users"""
+    st.markdown("""
+    ### 💾 **File Size Too Large?**
+    
+    For files >200MB, try compressing first:
+    
+    **Recommended compression tools:**
+    - **ZIP**: Built into most operating systems
+    - **7-Zip**: Free, excellent compression ratios
+    - **WinRAR/WinZip**: Popular on Windows
+    
+    **Expected compression ratios for TIFF files:**
+    - ZIP: 20-40% reduction
+    - 7-Zip: 30-50% reduction  
+    - LZ4: 15-25% reduction (fastest)
+    
+    **Or use our local version** for unlimited file sizes!
+    """)
 
 # Force configure upload limits using Streamlit's internal config
 try:
@@ -56,9 +124,9 @@ except:
 # Upload first with better error handling
 st.markdown("### 📁 File Upload")
 uploaded = st.file_uploader(
-    "Upload .tif/.tiff image",
-    type=["tif", "tiff"],
-    help="Large files (>500MB) may take several minutes to upload. Please be patient.",
+    "Upload .tif/.tiff image (or compressed .zip/.gz/.lz4/.zst)",
+    type=["tif", "tiff", "zip", "gz", "lz4", "zst"],
+    help="💡 Tip: Compress large files to reduce upload time! ZIP, GZ, LZ4, and ZSTD formats supported.",
 )
 
 # Show alternative for very large files
@@ -78,24 +146,52 @@ with col2:
 with col1:
     pass  # File uploader is above
 
-# Show upload progress for large files
+# Show upload progress and handle compression
 if uploaded is not None:
     try:
         file_size_mb = len(uploaded.getvalue()) / (1024 * 1024)
         st.success(f"✅ Upload successful! File size: {file_size_mb:.1f}MB")
-
-        if file_size_mb > 200:
-            st.info(
-                f"📁 Large file detected ({file_size_mb:.1f}MB). Processing may take a few minutes..."
-            )
-        elif file_size_mb > 500:
-            st.warning(
-                f"⚠️ Very large file ({file_size_mb:.1f}MB). Upload and processing will take time. Please keep the browser tab open."
-            )
+        
+        # Detect and handle compression
+        compression_type = detect_compression_type(uploaded.name)
+        
+        if compression_type:
+            st.info(f"🗜️ Compressed file detected ({compression_type.upper()}). Decompressing...")
+            
+            # Decompress the file
+            decompressed_data, original_filename = decompress_file(uploaded.getvalue(), compression_type)
+            
+            if decompressed_data is not None:
+                # Calculate compression ratio
+                original_size_mb = len(decompressed_data) / (1024 * 1024)
+                compression_ratio = (1 - file_size_mb / original_size_mb) * 100
+                
+                st.success(f"✅ Decompressed successfully! Original size: {original_size_mb:.1f}MB (saved {compression_ratio:.1f}%)")
+                
+                # Create a new uploaded file object with decompressed data
+                uploaded = type('MockUpload', (), {
+                    'getvalue': lambda: decompressed_data,
+                    'name': original_filename
+                })()
+                
+                file_size_mb = original_size_mb
+            else:
+                uploaded = None
+        
+        if uploaded and file_size_mb > 200:
+            st.info(f"📁 Large file detected ({file_size_mb:.1f}MB). Processing may take a few minutes...")
+        elif uploaded and file_size_mb > 500:
+            st.warning(f"⚠️ Very large file ({file_size_mb:.1f}MB). Processing will take time. Please keep the browser tab open.")
+            
     except Exception as e:
-        st.error(f"❌ Upload error: {str(e)}")
+        st.error(f"❌ Upload/processing error: {str(e)}")
         st.error("Please try a smaller file or refresh the page and try again.")
         uploaded = None
+
+# Show compression guide if upload failed or file is too large
+if uploaded is None or (uploaded and len(uploaded.getvalue()) / (1024 * 1024) > 200):
+    with st.expander("💾 Need to compress your file?"):
+        show_compression_guide()
 
 
 # Helper to render settings panel next to slice preview
