@@ -3,9 +3,7 @@ title: Cell Detection Tool
 emoji: 🔬
 colorFrom: blue
 colorTo: purple
-sdk: streamlit
-sdk_version: 1.28.0
-app_file: streamlit_app.py
+sdk: docker
 startup_duration_timeout: 5m
 suggested_hardware: cpu-basic
 pinned: false

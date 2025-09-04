@@ -65,14 +65,16 @@ uploaded = st.file_uploader(
 col1, col2 = st.columns([3, 1])
 with col2:
     with st.expander("💻 Large files?"):
-        st.markdown("""
+        st.markdown(
+            """
         **Having upload issues?**
         
         For files >500MB, consider:
         1. [Run locally](https://github.com/pr28416/cell-detection) 
         2. Try a smaller test file first
         3. Use stable internet connection
-        """)
+        """
+        )
 with col1:
     pass  # File uploader is above
 
@@ -81,7 +83,7 @@ if uploaded is not None:
     try:
         file_size_mb = len(uploaded.getvalue()) / (1024 * 1024)
         st.success(f"✅ Upload successful! File size: {file_size_mb:.1f}MB")
-        
+
         if file_size_mb > 200:
             st.info(
                 f"📁 Large file detected ({file_size_mb:.1f}MB). Processing may take a few minutes..."
