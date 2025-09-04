@@ -15,8 +15,8 @@ from PIL import Image  # type: ignore
 from main import inspect_and_preview, _count_dots_on_preview
 
 
-st.set_page_config(page_title="Visual Cortex - Circle Detector", layout="wide")
-st.title("Visual Cortex - Circle Detection")
+st.set_page_config(page_title="Cell Detector", layout="wide")
+st.title("Cell Detection")
 
 # Upload first
 uploaded = st.file_uploader("Upload .tif/.tiff image", type=["tif", "tiff"])

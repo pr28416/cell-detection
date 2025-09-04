@@ -1,4 +1,4 @@
-# Visual Cortex - Cell Detection Tool
+# Cell Detection Tool
 
 A Streamlit web application for automated detection and counting of circular cells in microscopy images.
 
