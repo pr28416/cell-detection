@@ -414,32 +414,42 @@ if uploaded is not None:
                         with st.spinner("Detecting on slice..."):
                             t0 = time.time()
 
-                            # Debug: show what we're passing to the function
-                            st.write(
-                                f"🔧 Debug: Passing width_um={slice_width_um:.2f}, height_um={slice_height_um:.2f}"
-                            )
-                            st.write(
-                                f"🔧 Debug: Slice image is {actual_w}×{actual_h} px (preview scale)"
-                            )
-                            st.write(
-                                f"🔧 Debug: Represents {orig_crop_w:.0f}×{orig_crop_h:.0f} px in original, downsample={downsample}"
-                            )
+                            # Calculate debug info
                             calc_px_size_x = slice_width_um / actual_w
                             calc_px_size_y = slice_height_um / actual_h
-                            st.write(
-                                f"🔧 Debug: Function will calculate px_size: {calc_px_size_x:.4f}×{calc_px_size_y:.4f} µm/px"
-                            )
-                            
-                            # Calculate what the function will compute for min_radius_px
                             avg_calc_px_size = np.sqrt(calc_px_size_x * calc_px_size_y)
-                            expected_min_radius_full = (min_diam_um / avg_calc_px_size) / 2.0
-                            expected_min_radius_final = expected_min_radius_full / downsample if downsample > 1 else expected_min_radius_full
-                            st.write(
-                                f"🔧 Debug: Min radius calculation: {min_diam_um}µm / {avg_calc_px_size:.4f}µm/px / 2 = {expected_min_radius_full:.1f}px"
-                            )
-                            st.write(
-                                f"🔧 Debug: After downsample ÷{downsample}: {expected_min_radius_final:.1f}px final threshold"
-                            )
+                            expected_min_radius_full = (
+                                min_diam_um / avg_calc_px_size
+                            ) / 2.0
+                            expected_min_radius_final = expected_min_radius_full
+                            preview_scale_min_diam_um = min_diam_um / scale_factor
+
+                            # Debug info in collapsible section
+                            with st.expander("🔧 Debug Info", expanded=False):
+                                st.write(
+                                    f"**Physical dimensions:** {slice_width_um:.2f}×{slice_height_um:.2f} µm"
+                                )
+                                st.write(
+                                    f"**Slice image:** {actual_w}×{actual_h} px (preview scale)"
+                                )
+                                st.write(
+                                    f"**Represents:** {orig_crop_w:.0f}×{orig_crop_h:.0f} px in original"
+                                )
+                                st.write(
+                                    f"**Calculated pixel size:** {calc_px_size_x:.4f}×{calc_px_size_y:.4f} µm/px"
+                                )
+                                st.write(
+                                    f"**Min radius calc:** {min_diam_um}µm ÷ {avg_calc_px_size:.4f}µm/px ÷ 2 = {expected_min_radius_full:.1f}px"
+                                )
+                                st.write(
+                                    f"**Adjusted min diameter:** {min_diam_um}µm → {preview_scale_min_diam_um:.1f}µm (for preview scale)"
+                                )
+                                st.write(
+                                    f"**Downsample setting:** 1 (no additional scaling)"
+                                )
+
+                            # Since we're using a preview-scale image, we need to adjust the min diameter
+                            # to match the scale of cells in that image
 
                             slice_count, _ = _count_dots_on_preview(
                                 preview_png_path=roi_path,
@@ -448,10 +458,10 @@ if uploaded is not None:
                                 num_sigma=10,
                                 threshold=0.03,
                                 overlap=0.5,
-                                downsample=downsample,
+                                downsample=1,  # No additional downsampling
                                 width_um=slice_width_um,  # Correct physical dimensions
                                 height_um=slice_height_um,  # Correct physical dimensions
-                                min_diam_um=min_diam_um,  # Use original min diameter
+                                min_diam_um=preview_scale_min_diam_um,  # Adjusted for preview scale
                                 threshold_mode=threshold_mode,
                                 thresh_percent=float(thresh_percent),
                                 threshold_scale=float(threshold_scale),
