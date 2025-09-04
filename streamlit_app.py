@@ -86,8 +86,10 @@ with col1:
 if uploaded is not None:
     try:
         file_size_mb = len(uploaded.getvalue()) / (1024 * 1024)
-        st.success(f"✅ Upload successful! File: {uploaded.name} ({file_size_mb:.1f}MB)")
-        
+        st.success(
+            f"✅ Upload successful! File: {uploaded.name} ({file_size_mb:.1f}MB)"
+        )
+
         if file_size_mb > 200:
             st.info(
                 f"📁 Large file detected ({file_size_mb:.1f}MB). Processing may take a few minutes..."

@@ -14,12 +14,8 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
-# Copy application files
+# Copy application files (includes .streamlit/config.toml)
 COPY . .
-
-# Create .streamlit directory and config
-RUN mkdir -p .streamlit
-COPY .streamlit/config.toml .streamlit/
 
 # Set environment variables for large uploads and stability
 ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=1024
