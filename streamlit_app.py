@@ -5,6 +5,7 @@ import tempfile
 # Set environment variables for large uploads before importing streamlit
 os.environ["STREAMLIT_SERVER_MAX_UPLOAD_SIZE"] = "1024"
 os.environ["STREAMLIT_SERVER_MAX_MESSAGE_SIZE"] = "1024"
+os.environ["maxUploadSize"] = "1024"
 
 # typing imports removed
 
@@ -531,11 +532,12 @@ if uploaded is not None:
 
 else:
     st.info("Upload a .tif to begin.")
-    
+
     # Local version info
     st.divider()
     st.subheader("💻 Need to process files larger than 200MB?")
-    st.markdown("""
+    st.markdown(
+        """
     **Download and run locally:**
     
     1. **Download the code**: [GitHub Repository](https://github.com/pr28416/cell-detection)
@@ -543,10 +545,12 @@ else:
     3. **Run locally**: `streamlit run streamlit_app.py`
     
     ✅ **Local version supports**: 1GB+ files, faster processing, debug images
-    """)
-    
+    """
+    )
+
     with st.expander("🛠️ Local Setup Instructions"):
-        st.code("""
+        st.code(
+            """
 # Clone the repository
 git clone https://github.com/pr28416/cell-detection.git
 cd cell-detection
@@ -556,4 +560,6 @@ pip install -r requirements.txt
 
 # Run the app locally (supports 1GB+ files)
 streamlit run streamlit_app.py
-        """, language="bash")
+        """,
+            language="bash",
+        )
