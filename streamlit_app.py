@@ -74,7 +74,6 @@ if uploaded is not None:
             f"✅ Upload successful! File: {uploaded.name} ({file_size_mb:.1f}MB)"
         )
 
-
     except Exception as e:
         st.error(f"❌ Upload error: {str(e)}")
         st.error("Please try refreshing the page and uploading again.")
@@ -346,8 +345,8 @@ if uploaded is not None:
                     s = st.session_state.get("_settings", {})
                     orig_width_um = s.get("width_um", 1705.6)
                     orig_height_um = s.get("height_um", 1706.81)
-                    
-                    # Calculate pixel size from ORIGINAL image 
+
+                    # Calculate pixel size from ORIGINAL image
                     px_size_x_um = orig_width_um / orig_w
                     px_size_y_um = orig_height_um / orig_h
 
@@ -356,9 +355,9 @@ if uploaded is not None:
                     if max(h, w) > 1024:
                         scale = max(h, w) / 1024.0
                         actual_h, actual_w = int(h / scale), int(w / scale)
-                        snp = resize(snp, (actual_h, actual_w), preserve_range=True).astype(
-                            np.uint8
-                        )
+                        snp = resize(
+                            snp, (actual_h, actual_w), preserve_range=True
+                        ).astype(np.uint8)
 
                     # Calculate effective physical dimensions that maintain original pixel size
                     # This tricks the function into using the correct pixel-to-micron ratio
@@ -368,9 +367,17 @@ if uploaded is not None:
                     roi_path = os.path.join(prev_dir, "slice.png")
                     iio.imwrite(roi_path, snp)
 
+                    # Calculate what the minimum radius should be in pixels for debugging  
+                    min_diam_um = s.get("min_diam_um", 10.0)
+                    avg_px_size_um = np.sqrt(px_size_x_um * px_size_y_um)
+                    expected_min_radius_px = (min_diam_um / avg_px_size_um) / 2.0
+                    
                     # Show slice info
                     st.caption(
                         f"📏 Slice: {actual_w}×{actual_h} px | Pixel size: {px_size_x_um:.3f}×{px_size_y_um:.3f} µm/px"
+                    )
+                    st.caption(
+                        f"🔍 Debug: {min_diam_um}µm min diameter → expected ~{expected_min_radius_px:.1f}px min radius"
                     )
 
                     if st.button("Preview on slice"):
@@ -394,6 +401,14 @@ if uploaded is not None:
 
                         with st.spinner("Detecting on slice..."):
                             t0 = time.time()
+                            
+                            # Debug: show what we're passing to the function
+                            st.write(f"🔧 Debug: Passing width_um={slice_width_um:.2f}, height_um={slice_height_um:.2f}")
+                            st.write(f"🔧 Debug: Slice is {actual_w}×{actual_h} px, downsample={downsample}")
+                            calc_px_size_x = slice_width_um / actual_w
+                            calc_px_size_y = slice_height_um / actual_h
+                            st.write(f"🔧 Debug: Function will calculate px_size: {calc_px_size_x:.4f}×{calc_px_size_y:.4f} µm/px")
+                            
                             slice_count, _ = _count_dots_on_preview(
                                 preview_png_path=roi_path,
                                 min_sigma=1.5,
@@ -616,33 +631,3 @@ if uploaded is not None:
 else:
     st.info("Upload a .tif to begin.")
 
-    # Local version info
-    st.divider()
-    st.subheader("💻 Need to process files larger than 200MB?")
-    st.markdown(
-        """
-    **Download and run locally:**
-    
-    1. **Download the code**: [GitHub Repository](https://github.com/pr28416/cell-detection)
-    2. **Install dependencies**: `pip install -r requirements.txt`
-    3. **Run locally**: `streamlit run streamlit_app.py`
-    
-    ✅ **Local version supports**: 1GB+ files, faster processing, debug images
-    """
-    )
-
-    with st.expander("🛠️ Local Setup Instructions"):
-        st.code(
-            """
-# Clone the repository
-git clone https://github.com/pr28416/cell-detection.git
-cd cell-detection
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the app locally (supports 1GB+ files)
-streamlit run streamlit_app.py
-        """,
-            language="bash",
-        )
