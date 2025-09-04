@@ -1,0 +1,2 @@
+# System packages required for the app
+# This file is read by Hugging Face Spaces to install system dependencies

@@ -19,9 +19,33 @@ from PIL import Image  # type: ignore
 
 from main import inspect_and_preview, _count_dots_on_preview
 
+# Force configure upload limits using Streamlit's internal config
+try:
+    from streamlit import config
+    config._set_option("server.maxUploadSize", 1024, "command_line")
+    config._set_option("server.maxMessageSize", 1024, "command_line") 
+except:
+    pass
+
+# Also try setting via runtime config
+try:
+    import streamlit.runtime.config as runtime_config
+    runtime_config.get_config_options()["server.maxUploadSize"] = 1024
+    runtime_config.get_config_options()["server.maxMessageSize"] = 1024
+except:
+    pass
+
 # Configure Streamlit for large file uploads
 st.set_page_config(page_title="Cell Detector", layout="wide")
 st.title("Cell Detection")
+
+# Display current upload limit for debugging
+try:
+    from streamlit import config
+    current_limit = config.get_option("server.maxUploadSize")
+    st.caption(f"🔧 Current upload limit: {current_limit}MB")
+except:
+    st.caption("🔧 Upload limit: Using default configuration")
 
 # Upload first
 uploaded = st.file_uploader("Upload .tif/.tiff image", type=["tif", "tiff"])
