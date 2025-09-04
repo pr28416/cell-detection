@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install essential system dependencies for Streamlit app
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
