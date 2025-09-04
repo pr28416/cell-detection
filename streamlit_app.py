@@ -341,10 +341,11 @@ if uploaded is not None:
                 preview_h, preview_w = pil_img.size[1], pil_img.size[0]
                 scale_factor = orig_w / preview_w  # How much the preview is downsampled
 
+                # Get crop coordinates from the cropper (working on preview image)
                 slice_img = st_cropper(pil_img, aspect_ratio=None, box_color="#00FF00")
                 snp = np.array(slice_img)
                 h, w = snp.shape[:2]
-                
+
                 if h > 0 and w > 0:
                     # Get original physical dimensions to maintain pixel-to-micron ratio
                     s = st.session_state.get("_settings", {})
@@ -359,13 +360,15 @@ if uploaded is not None:
                     orig_crop_w = w * scale_factor
                     orig_crop_h = h * scale_factor
 
-                    # Save the slice image (keep it at preview resolution for fast processing)
+                    # SIMPLE CORRECT APPROACH:
+                    # We save h×w pixels from the preview, so physical size = h×w * true_pixel_size
                     actual_h, actual_w = h, w
-                    # Note: We keep the slice at preview resolution but calculate correct physical dimensions
-                    
-                    # Calculate physical dimensions based on ORIGINAL scale crop dimensions
-                    slice_width_um = orig_crop_w * true_px_size_x_um
-                    slice_height_um = orig_crop_h * true_px_size_y_um
+                    slice_width_um = (
+                        actual_w * true_px_size_x_um
+                    )  # e.g. 1229 * 0.203 = 249.7 µm
+                    slice_height_um = (
+                        actual_h * true_px_size_y_um
+                    )  # e.g. 1228 * 0.203 = 249.5 µm
 
                     roi_path = os.path.join(prev_dir, "slice.png")
                     iio.imwrite(roi_path, snp)
@@ -426,6 +429,17 @@ if uploaded is not None:
                             st.write(
                                 f"🔧 Debug: Function will calculate px_size: {calc_px_size_x:.4f}×{calc_px_size_y:.4f} µm/px"
                             )
+                            
+                            # Calculate what the function will compute for min_radius_px
+                            avg_calc_px_size = np.sqrt(calc_px_size_x * calc_px_size_y)
+                            expected_min_radius_full = (min_diam_um / avg_calc_px_size) / 2.0
+                            expected_min_radius_final = expected_min_radius_full / downsample if downsample > 1 else expected_min_radius_full
+                            st.write(
+                                f"🔧 Debug: Min radius calculation: {min_diam_um}µm / {avg_calc_px_size:.4f}µm/px / 2 = {expected_min_radius_full:.1f}px"
+                            )
+                            st.write(
+                                f"🔧 Debug: After downsample ÷{downsample}: {expected_min_radius_final:.1f}px final threshold"
+                            )
 
                             slice_count, _ = _count_dots_on_preview(
                                 preview_png_path=roi_path,
@@ -435,9 +449,9 @@ if uploaded is not None:
                                 threshold=0.03,
                                 overlap=0.5,
                                 downsample=downsample,
-                                width_um=slice_width_um,  # Use calculated slice dimensions
-                                height_um=slice_height_um,  # Use calculated slice dimensions
-                                min_diam_um=min_diam_um,
+                                width_um=slice_width_um,  # Correct physical dimensions
+                                height_um=slice_height_um,  # Correct physical dimensions
+                                min_diam_um=min_diam_um,  # Use original min diameter
                                 threshold_mode=threshold_mode,
                                 thresh_percent=float(thresh_percent),
                                 threshold_scale=float(threshold_scale),
