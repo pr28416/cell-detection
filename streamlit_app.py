@@ -65,22 +65,6 @@ uploaded = st.file_uploader(
     help="🔬 Upload your microscopy TIFF file. Large files (>500MB) may take several minutes to upload.",
 )
 
-# Show alternative for very large files
-col1, col2 = st.columns([3, 1])
-with col2:
-    with st.expander("💻 Large files?"):
-        st.markdown(
-            """
-        **Having upload issues?**
-        
-        For files >500MB, consider:
-        1. [Run locally](https://github.com/pr28416/cell-detection) 
-        2. Try a smaller test file first
-        3. Use stable internet connection
-        """
-        )
-with col1:
-    pass  # File uploader is above
 
 # Show upload progress
 if uploaded is not None:
@@ -90,14 +74,6 @@ if uploaded is not None:
             f"✅ Upload successful! File: {uploaded.name} ({file_size_mb:.1f}MB)"
         )
 
-        if file_size_mb > 200:
-            st.info(
-                f"📁 Large file detected ({file_size_mb:.1f}MB). Processing may take a few minutes..."
-            )
-        if file_size_mb > 500:
-            st.warning(
-                f"⚠️ Very large file ({file_size_mb:.1f}MB). Processing will take time. Please keep the browser tab open."
-            )
 
     except Exception as e:
         st.error(f"❌ Upload error: {str(e)}")
@@ -353,8 +329,11 @@ if uploaded is not None:
             if current_path:
                 pil_img = Image.open(current_path).convert("L")
                 # Get original image dimensions for physical scaling calculation
-                orig_h, orig_w = pil_img.size[1], pil_img.size[0]  # PIL uses (W, H) format
-                
+                orig_h, orig_w = (
+                    pil_img.size[1],
+                    pil_img.size[0],
+                )  # PIL uses (W, H) format
+
                 slice_img = st_cropper(pil_img, aspect_ratio=None, box_color="#00FF00")
                 snp = np.array(slice_img)
                 h, w = snp.shape[:2]
@@ -363,32 +342,37 @@ if uploaded is not None:
                         "Selected slice is too small. Increase selection to at least 100×100."
                     )
                 else:
-                    # Calculate slice physical dimensions based on the crop ratio
-                    # Get settings for original physical dimensions
+                    # Get original physical dimensions to maintain pixel-to-micron ratio
                     s = st.session_state.get("_settings", {})
                     orig_width_um = s.get("width_um", 1705.6)
                     orig_height_um = s.get("height_um", 1706.81)
                     
-                    # Calculate slice physical dimensions proportionally
-                    slice_width_um = orig_width_um * (w / orig_w)
-                    slice_height_um = orig_height_um * (h / orig_h)
-                    
+                    # Calculate pixel size from ORIGINAL image 
+                    px_size_x_um = orig_width_um / orig_w
+                    px_size_y_um = orig_height_um / orig_h
+
+                    # Handle downscaling if slice is too large
+                    actual_h, actual_w = h, w
                     if max(h, w) > 1024:
                         scale = max(h, w) / 1024.0
-                        new_h, new_w = int(h / scale), int(w / scale)
-                        snp = resize(snp, (new_h, new_w), preserve_range=True).astype(
+                        actual_h, actual_w = int(h / scale), int(w / scale)
+                        snp = resize(snp, (actual_h, actual_w), preserve_range=True).astype(
                             np.uint8
                         )
-                        # Also scale the physical dimensions
-                        slice_width_um = slice_width_um * (new_w / w)
-                        slice_height_um = slice_height_um * (new_h / h)
-                    
+
+                    # Calculate effective physical dimensions that maintain original pixel size
+                    # This tricks the function into using the correct pixel-to-micron ratio
+                    slice_width_um = actual_w * px_size_x_um
+                    slice_height_um = actual_h * px_size_y_um
+
                     roi_path = os.path.join(prev_dir, "slice.png")
                     iio.imwrite(roi_path, snp)
-                    
+
                     # Show slice info
-                    st.caption(f"📏 Slice: {snp.shape[1]}×{snp.shape[0]} px → {slice_width_um:.1f}×{slice_height_um:.1f} µm")
-                    
+                    st.caption(
+                        f"📏 Slice: {actual_w}×{actual_h} px | Pixel size: {px_size_x_um:.3f}×{px_size_y_um:.3f} µm/px"
+                    )
+
                     if st.button("Preview on slice"):
                         # Get settings from session state if available, fallback to defaults
                         s = st.session_state.get("_settings", {})

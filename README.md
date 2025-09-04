@@ -43,6 +43,7 @@ A Streamlit web application for automated detection and counting of circular cel
 **For non-technical users:** See [EASY_SETUP.md](EASY_SETUP.md) for one-click installation!
 
 **Quick start:**
+
 - **Windows:** Double-click `setup_and_run.bat`
 - **Mac/Linux:** Run `./setup_and_run.sh` in terminal
 
