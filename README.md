@@ -38,9 +38,24 @@ A Streamlit web application for automated detection and counting of circular cel
 - **Filtering**: Remove false positives based on shape and contrast
 - **Size constraints**: Set minimum cell diameter in microns
 
-## Local Development
+## 🚀 Easy Local Setup (Recommended)
+
+**For non-technical users:** See [EASY_SETUP.md](EASY_SETUP.md) for one-click installation!
+
+**Quick start:**
+- **Windows:** Double-click `setup_and_run.bat`
+- **Mac/Linux:** Run `./setup_and_run.sh` in terminal
+
+## 🔧 Manual Development Setup
 
 ```bash
 pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
+
+## ⚡ Why Run Locally?
+
+- **No file size limits** (upload 1GB+ files)
+- **Faster processing** (uses your computer's resources)
+- **More reliable** (no network timeouts)
+- **Works offline** after initial setup

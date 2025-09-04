@@ -352,6 +352,9 @@ if uploaded is not None:
             current_path = paths.get(sel or "", None)
             if current_path:
                 pil_img = Image.open(current_path).convert("L")
+                # Get original image dimensions for physical scaling calculation
+                orig_h, orig_w = pil_img.size[1], pil_img.size[0]  # PIL uses (W, H) format
+                
                 slice_img = st_cropper(pil_img, aspect_ratio=None, box_color="#00FF00")
                 snp = np.array(slice_img)
                 h, w = snp.shape[:2]
@@ -360,14 +363,32 @@ if uploaded is not None:
                         "Selected slice is too small. Increase selection to at least 100×100."
                     )
                 else:
+                    # Calculate slice physical dimensions based on the crop ratio
+                    # Get settings for original physical dimensions
+                    s = st.session_state.get("_settings", {})
+                    orig_width_um = s.get("width_um", 1705.6)
+                    orig_height_um = s.get("height_um", 1706.81)
+                    
+                    # Calculate slice physical dimensions proportionally
+                    slice_width_um = orig_width_um * (w / orig_w)
+                    slice_height_um = orig_height_um * (h / orig_h)
+                    
                     if max(h, w) > 1024:
                         scale = max(h, w) / 1024.0
                         new_h, new_w = int(h / scale), int(w / scale)
                         snp = resize(snp, (new_h, new_w), preserve_range=True).astype(
                             np.uint8
                         )
+                        # Also scale the physical dimensions
+                        slice_width_um = slice_width_um * (new_w / w)
+                        slice_height_um = slice_height_um * (new_h / h)
+                    
                     roi_path = os.path.join(prev_dir, "slice.png")
                     iio.imwrite(roi_path, snp)
+                    
+                    # Show slice info
+                    st.caption(f"📏 Slice: {snp.shape[1]}×{snp.shape[0]} px → {slice_width_um:.1f}×{slice_height_um:.1f} µm")
+                    
                     if st.button("Preview on slice"):
                         # Get settings from session state if available, fallback to defaults
                         s = st.session_state.get("_settings", {})
@@ -397,8 +418,8 @@ if uploaded is not None:
                                 threshold=0.03,
                                 overlap=0.5,
                                 downsample=downsample,
-                                width_um=width_um,
-                                height_um=height_um,
+                                width_um=slice_width_um,  # Use calculated slice dimensions
+                                height_um=slice_height_um,  # Use calculated slice dimensions
                                 min_diam_um=min_diam_um,
                                 threshold_mode=threshold_mode,
                                 thresh_percent=float(thresh_percent),
