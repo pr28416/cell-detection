@@ -31,6 +31,10 @@ fi
 echo -e "${GREEN}✅ Python found${NC}"
 echo ""
 
+# Always run from the script directory so config files are discovered
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo -e "${BLUE}🔧 Creating virtual environment...${NC}"
@@ -77,5 +81,19 @@ echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop the application${NC}"
 echo ""
 
-# Run the Streamlit app
-streamlit run streamlit_app.py --server.port=8501
+# Ensure generous upload limits and disable CORS/XSRF for local use
+export STREAMLIT_SERVER_MAX_UPLOAD_SIZE=1024
+export STREAMLIT_SERVER_MAX_MESSAGE_SIZE=1024
+export STREAMLIT_SERVER_ENABLE_CORS=false
+export STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+export STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+# Run the Streamlit app with explicit flags (works even if config isn't picked up)
+streamlit run "$SCRIPT_DIR/streamlit_app.py" \
+    --server.port=8501 \
+    --server.address=0.0.0.0 \
+    --server.headless=true \
+    --server.maxUploadSize=1024 \
+    --server.maxMessageSize=1024 \
+    --server.enableCORS=false \
+    --server.enableXsrfProtection=false
